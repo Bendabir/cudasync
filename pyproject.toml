@@ -16,6 +16,9 @@ typer = "^0.12.3"
 anyio = "^4.3.0"
 tqdm = "^4.66.2"
 joblib = "^1.4.0"
+plotly = "^5.20.0"
+nbformat = "^5.10.4"
+pandas = "^2.2.2"
 
 [tool.poetry.group.dev]
 optional = true
@@ -29,6 +32,9 @@ ruff = "^0.3.2"
 mypy = "^1.9.0"
 mypypp = "^0.1.0"
 types-tqdm = "^4.66.0.20240106"
+ipython = "^8.23.0"
+ipykernel = "^6.29.4"
+ipywidgets = "^8.1.2"
 
 [build-system]
 requires = ["poetry-core"]
