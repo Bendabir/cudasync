@@ -61,5 +61,17 @@ def main(
 # BS 256 : ~5000 FPS on RTX 3080 Ti
 # BS 512 : ~5000 FPS on RTX 3080 Ti
 # BS 1024 : ~5100 FPS on RTX 3080 Ti
+
+# BS 1 : ~100 FPS on i7-12700KF
+# BS 2 : ~100 FPS on i7-12700KF
+# BS 4 : ~110 FPS on i7-12700KF
+# BS 8 : ~120 FPS on i7-12700KF
+# BS 16 : ~120 FPS on i7-12700KF
+# BS 32 : ~120 FPS on i7-12700KF
+# BS 64 : ~110 FPS on i7-12700KF
+# BS 128 : ~120 FPS on i7-12700KF
+# BS 256 : ~125 FPS on i7-12700KF
+# BS 512 : ~130 FPS on i7-12700KF
+# BS 1024 : ~135 FPS on i7-12700KF
 if __name__ == "__main__":
     typer.run(main)
