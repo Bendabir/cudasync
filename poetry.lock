@@ -671,6 +671,17 @@ test = ["async-timeout", "pytest", "pytest-asyncio (>=0.17)", "pytest-trio", "te
 trio = ["async_generator", "trio"]
 
 [[package]]
+name = "joblib"
+version = "1.4.0"
+description = "Lightweight pipelining with Python functions"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "joblib-1.4.0-py3-none-any.whl", hash = "sha256:42942470d4062537be4d54c83511186da1fc14ba354961a2114da91efa9a4ed7"},
+    {file = "joblib-1.4.0.tar.gz", hash = "sha256:1eb0dc091919cd384490de890cb5dfd538410a6d4b3b54eef09fb8c50b409b1c"},
+]
+
+[[package]]
 name = "keyring"
 version = "24.3.1"
 description = "Store and access your passwords safely."
@@ -1701,4 +1712,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<4.0"
-content-hash = "6e668d8b7cbe6fb7e5007388df6a6a75c9b1223f0fa8cc109aedc06a465b86d0"
+content-hash = "173d81be0b3abc1c0dbbc2a18880ba2eea4c41387229909397ef556cde0eb0e8"

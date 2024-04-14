@@ -15,6 +15,7 @@ trio = "^0.25.0"
 typer = "^0.12.3"
 anyio = "^4.3.0"
 tqdm = "^4.66.2"
+joblib = "^1.4.0"
 
 [tool.poetry.group.dev]
 optional = true
