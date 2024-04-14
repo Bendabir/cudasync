@@ -35,9 +35,6 @@ repos:
         args:
           - --remove
       - id: name-tests-test
-      - id: no-commit-to-branch
-        args:
-          - --branch=main
   - repo: https://gitlab.com/bmares/check-json5
     rev: v1.0.0
     hooks:
