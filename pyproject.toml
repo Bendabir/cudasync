@@ -149,6 +149,9 @@ ignore = [
 ]
 unfixable = ["ERA001"]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts*.py" = ["D101", "D102", "D103", "INP001"]
+
 [tool.ruff.lint.isort]
 combine-as-imports = true
 required-imports = ["from __future__ import annotations"]
