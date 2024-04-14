@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import torch
 import torch.nn.functional as F  # noqa: N812
@@ -14,7 +14,13 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-def batches(device: str, size: int, height: int, width: int) -> Iterator[torch.Tensor]:
+def batches(
+    device: str,
+    size: int,
+    height: int,
+    width: int,
+    total: int | None,
+) -> Iterator[torch.Tensor]:
     # Spawn the data on the GPU directly and randomize.
     # Purpose is to pressurize the GPU with compute.
     # Therefore, we don't real need to set the seed.
@@ -26,11 +32,14 @@ def batches(device: str, size: int, height: int, width: int) -> Iterator[torch.T
         dtype=torch.float32,
         device=device,
     )
+    i = 0
 
-    while True:
+    while total is None or i < total:
         torch.rand(size=(size, 3, height, width), out=batch)
 
         yield batch
+
+        i += 1
 
 
 def main(
@@ -38,12 +47,20 @@ def main(
     size: int = 16,
     height: int = 224,
     width: int = 224,
+    # New Python 3.10 unions not supported by Typer
+    total: Optional[int] = None,  # noqa: UP007
 ) -> None:
     # Using a small model to CPU really has to saturate the GPU with instructions
     model = torchvision.models.resnet18().eval().to(device)
 
     with torch.inference_mode(), tqdm(unit="image") as bar:
-        for batch in batches(device, size=size, height=height, width=width):
+        for batch in batches(
+            device,
+            size=size,
+            height=height,
+            width=width,
+            total=total,
+        ):
             logits: torch.Tensor = model(batch)
             scores = F.softmax(logits, dim=0)
 
