@@ -62,7 +62,27 @@ def resize_image(
     )
 
 
-def process_image(
+# NOTE : We can convince ourselves that the GIL is actually released
+#        by replacing the following instructions with a dummy instructions
+#        that hold the GIL.
+#        On my machine, this simple for-loop produces the same throughput with
+#        single worker. When spawning more workers, performances start to degrades
+#        because of the GIL.
+def process_image_with_gil(
+    _path: Path,
+    _height: int,
+    _width: int,
+    _interpolation: Interpolation,
+    bar: tqdm[NoReturn],
+    load: int = 1_500_000,
+) -> None:
+    for _ in range(load):
+        pass
+
+    bar.update(1)
+
+
+def process_image_no_gil(
     path: Path,
     height: int,
     width: int,
@@ -76,12 +96,14 @@ def process_image(
     bar.update(1)
 
 
-def run(
+def run(  # noqa: PLR0913
     directory: Path,
     height: int,
     width: int,
     interpolation: Interpolation,
     workers: int,
+    *,
+    simulate: bool,
 ) -> None:
     bar = tqdm(unit="image")
 
@@ -93,7 +115,9 @@ def run(
             return_as="generator",
         ) as parallel:
             for _ in parallel(
-                joblib.delayed(process_image)(
+                joblib.delayed(
+                    process_image_with_gil if simulate else process_image_no_gil
+                )(
                     path,
                     height,
                     width,
@@ -107,14 +131,15 @@ def run(
         bar.close()
 
 
-def main(
+def main(  # noqa: PLR0913, PLR0917
     directory: Path,
     height: int = 1024,
     width: int = 1024,
     interpolation: Interpolation = Interpolation.CUBIC,
     workers: int = 8,
+    simulate: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
-    run(directory, height, width, interpolation, workers)
+    run(directory, height, width, interpolation, workers, simulate=simulate)
 
 
 # ~100 FPS on my machine (i7-12700KF) with 1 worker
@@ -123,5 +148,11 @@ def main(
 # ~600 FPS on my machine (i7-12700KF) with 8 workers
 # ~800 FPS on my machine (i7-12700KF) with 16 workers
 # ~750 FPS on my machine (i7-12700KF) with 20 workers
+
+# ~100 FPS on my machine (i7-12700KF) with 1 worker and GIL locking instructions
+# ~100 FPS on my machine (i7-12700KF) with 2 workers and GIL locking instructions
+# ~90 FPS on my machine (i7-12700KF) with 4 workers and GIL locking instructions
+# ~70 FPS on my machine (i7-12700KF) with 8 workers and GIL locking instructions
+# ~10 FPS on my machine (i7-12700KF) with 16 workers and GIL locking instructions
 if __name__ == "__main__":
     typer.run(main)
