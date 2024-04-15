@@ -42,7 +42,9 @@ def batches(
     i = 0
 
     while total is None or i < total:
+        torch.cuda.nvtx.range_push("random_generation")  # type: ignore[no-untyped-call]
         torch.randint(low=0, high=256, size=(size, 3, height, width), out=batch)
+        torch.cuda.nvtx.range_pop()  # type: ignore[no-untyped-call]
 
         yield batch
 
@@ -93,10 +95,22 @@ def main(  # noqa: PLR0913, PLR0917
             width=width,
             total=total,
         ):
+            torch.cuda.nvtx.range_push("cpu_to_gpu")  # type: ignore[no-untyped-call]
             batch = _batch.to(device)  # This is blocking
+            torch.cuda.nvtx.range_pop()  # type: ignore[no-untyped-call]
+
+            torch.cuda.nvtx.range_push("normalization")  # type: ignore[no-untyped-call]
             batch = batch.to(torch.float32).mul_(1.0 / 255)
+            torch.cuda.nvtx.range_pop()  # type: ignore[no-untyped-call]
+
+            torch.cuda.nvtx.range_push("model")  # type: ignore[no-untyped-call]
             logits: torch.Tensor = resnet(batch)
-            scores = F.softmax(logits, dim=0).cpu()  # Also blocking
+            scores = F.softmax(logits, dim=0)
+            torch.cuda.nvtx.range_pop()  # type: ignore[no-untyped-call]
+
+            torch.cuda.nvtx.range_push("gpu_to_cpu")  # type: ignore[no-untyped-call]
+            scores = scores.cpu()  # Also blocking
+            torch.cuda.nvtx.range_pop()  # type: ignore[no-untyped-call]
 
             bar.update(len(scores))
 
