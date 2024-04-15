@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+import enum
+from typing import TYPE_CHECKING, Optional, assert_never, final
 
 import torch
 import torch.nn.functional as F  # noqa: N812
@@ -48,7 +49,17 @@ def batches(
         i += 1
 
 
-def main(
+@final
+class Models(enum.StrEnum):
+    RESNET_18 = "resnet18"
+    RESNET_34 = "resnet34"
+    RESNET_50 = "resnet50"
+    RESNET_101 = "resnet101"
+    RESNET_152 = "resnet152"
+
+
+def main(  # noqa: PLR0913, PLR0917
+    model: Models = Models.RESNET_18,
     device: str = "cuda:0",
     size: int = 16,
     height: int = 224,
@@ -56,8 +67,24 @@ def main(
     # New Python 3.10 unions not supported by Typer
     total: Optional[int] = None,  # noqa: UP007
 ) -> None:
-    # Using a small model to CPU really has to saturate the GPU with instructions
-    model = torchvision.models.resnet18().eval().to(device)
+    # Typing seems to be broken for TorchVision
+    resnet: torchvision.models.ResNet  # type: ignore[no-any-unimported]
+
+    match model:
+        case Models.RESNET_18:
+            resnet = torchvision.models.resnet18()
+        case Models.RESNET_34:
+            resnet = torchvision.models.resnet34()
+        case Models.RESNET_50:
+            resnet = torchvision.models.resnet50()
+        case Models.RESNET_101:
+            resnet = torchvision.models.resnet101()
+        case Models.RESNET_152:
+            resnet = torchvision.models.resnet152()
+        case never:
+            assert_never(never)
+
+    resnet = resnet.eval().to(device)
 
     with torch.inference_mode(), tqdm(unit="image") as bar:
         for _batch in batches(
@@ -68,22 +95,33 @@ def main(
         ):
             batch = _batch.to(device)  # This is blocking
             batch = batch.to(torch.float32).mul_(1.0 / 255)
-            logits: torch.Tensor = model(batch)
+            logits: torch.Tensor = resnet(batch)
             scores = F.softmax(logits, dim=0).cpu()  # Also blocking
 
             bar.update(len(scores))
 
 
-# BS 1 : ~500 FPS on RTX 3080 Ti
-# BS 2 : ~850 FPS on RTX 3080 Ti
-# BS 4 : ~1200 FPS on RTX 3080 Ti
-# BS 8 : ~1350 FPS on RTX 3080 Ti
-# BS 16 : ~1450 FPS on RTX 3080 Ti
-# BS 32 : ~1500 FPS on RTX 3080 Ti
-# BS 64 : ~1550 FPS on RTX 3080 Ti
-# BS 128 : ~1600 FPS on RTX 3080 Ti
-# BS 256 : ~1650 FPS on RTX 3080 Ti
-# BS 512 : ~1700 FPS on RTX 3080 Ti
-# BS 1024 : ~1700 FPS on RTX 3080 Ti
+# BS 1 : ~500 FPS on RTX 3080 Ti for ResNet18
+# BS 2 : ~850 FPS on RTX 3080 Ti for ResNet18
+# BS 4 : ~1200 FPS on RTX 3080 Ti for ResNet18
+# BS 8 : ~1350 FPS on RTX 3080 Ti for ResNet18
+# BS 16 : ~1450 FPS on RTX 3080 Ti for ResNet18
+# BS 32 : ~1500 FPS on RTX 3080 Ti for ResNet18
+# BS 64 : ~1550 FPS on RTX 3080 Ti for ResNet18
+# BS 128 : ~1600 FPS on RTX 3080 Ti for ResNet18
+# BS 256 : ~1650 FPS on RTX 3080 Ti for ResNet18
+# BS 512 : ~1700 FPS on RTX 3080 Ti for ResNet18
+# BS 1024 : ~1700 FPS on RTX 3080 Ti for ResNet18
+
+# BS 1 : ~275 FPS on RTX 3080 Ti for ResNet50
+# BS 2 : ~500 FPS on RTX 3080 Ti for ResNet50
+# BS 4 : ~750 FPS on RTX 3080 Ti for ResNet50
+# BS 8 : ~825 FPS on RTX 3080 Ti for ResNet50
+# BS 16 : ~875 FPS on RTX 3080 Ti for ResNet50
+# BS 32 : ~900 FPS on RTX 3080 Ti for ResNet50
+# BS 64 : ~950 FPS on RTX 3080 Ti for ResNet50
+# BS 128 : ~975 FPS on RTX 3080 Ti for ResNet50
+# BS 256 : ~975 FPS on RTX 3080 Ti for ResNet50
+# BS 512 : ~975 FPS on RTX 3080 Ti for ResNet50
 if __name__ == "__main__":
     typer.run(main)
