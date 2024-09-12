@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import enum
 import random
-from pathlib import Path  # noqa: TCH003 (for Typer)
-from typing import NoReturn, final
+from pathlib import Path  # noqa: TCH003
+from typing import Literal, NoReturn
 
 import anyio
 import anyio.abc
+import cyclopts
 import httpx
-import typer
 from tqdm import tqdm
 
 
@@ -86,22 +85,23 @@ async def run(
         bar.close()
 
 
-@final
-class AsyncBackend(enum.StrEnum):  # Typer doesn't support Literal yet...
-    ASYNCIO = "asyncio"
-    TRIO = "trio"
+AsyncBackend = Literal["asyncio", "trio"]
+
+app = cyclopts.App()
 
 
-def main(  # noqa: PLR0913, PLR0917
+@app.default
+def main(  # noqa: PLR0913
+    *,
     directory: Path,
     base_url: str = "https://picsum.photos",
     seed: str = "cuda",
     count: int = 100,
     concurrency: int = 10,
-    backend: AsyncBackend = AsyncBackend.TRIO,
+    backend: AsyncBackend = "trio",
 ) -> None:
     anyio.run(run, directory, base_url, seed, count, concurrency, backend=backend)
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()

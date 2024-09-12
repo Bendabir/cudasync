@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import enum
 import itertools as it
-from typing import Optional, assert_never, final
+from typing import Literal, assert_never
 
+import cyclopts
 import joblib
 import torch
 import torch.nn.functional as F  # noqa: N812
-import torchvision
-import typer
+import torchvision as tv
 from tqdm import tqdm
 
 
@@ -18,7 +17,7 @@ from tqdm import tqdm
 def run(  # type: ignore[no-any-unimported]  # noqa: PLR0913, PLR0917
     device: str,
     stream: torch.cuda.Stream,
-    model: torchvision.models.ResNet,
+    model: tv.models.ResNet,
     batch: torch.Tensor,  # The input (pinned)
     result: torch.Tensor,  # The output (pinned)
     size: int,
@@ -58,39 +57,42 @@ def run(  # type: ignore[no-any-unimported]  # noqa: PLR0913, PLR0917
     return len(batch)
 
 
-@final
-class Models(enum.StrEnum):
-    RESNET_18 = "resnet18"
-    RESNET_34 = "resnet34"
-    RESNET_50 = "resnet50"
-    RESNET_101 = "resnet101"
-    RESNET_152 = "resnet152"
+Model = Literal[
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+]
+
+app = cyclopts.App()
 
 
-def main(  # noqa: PLR0913, PLR0917
-    model: Models = Models.RESNET_18,
+@app.default
+def main(  # noqa: PLR0913
+    *,
+    model: Model = "resnet18",
     device: str = "cuda:0",
     size: int = 16,
     height: int = 224,
     width: int = 224,
-    # New Python 3.10 unions not supported by Typer
-    total: Optional[int] = None,  # noqa: UP007
+    total: int | None = None,
     threads: int = 2,
 ) -> None:
     # Typing seems to be broken for TorchVision
-    resnet: torchvision.models.ResNet  # type: ignore[no-any-unimported]
+    resnet: tv.models.ResNet  # type: ignore[no-any-unimported]
 
     match model:
-        case Models.RESNET_18:
-            resnet = torchvision.models.resnet18()
-        case Models.RESNET_34:
-            resnet = torchvision.models.resnet34()
-        case Models.RESNET_50:
-            resnet = torchvision.models.resnet50()
-        case Models.RESNET_101:
-            resnet = torchvision.models.resnet101()
-        case Models.RESNET_152:
-            resnet = torchvision.models.resnet152()
+        case "resnet18":
+            resnet = tv.models.resnet18()
+        case "resnet34":
+            resnet = tv.models.resnet34()
+        case "resnet50":
+            resnet = tv.models.resnet50()
+        case "resnet101":
+            resnet = tv.models.resnet101()
+        case "resnet152":
+            resnet = tv.models.resnet152()
         case never:
             assert_never(never)
 
@@ -169,4 +171,4 @@ def main(  # noqa: PLR0913, PLR0917
 # BS 128 : ~1625 FPS on RTX 3080 Ti for ResNet50 with 2 threads
 # BS 256 : ~1650 FPS on RTX 3080 Ti for ResNet50 with 2 threads
 if __name__ == "__main__":
-    typer.run(main)
+    app()

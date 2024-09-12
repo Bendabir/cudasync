@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import enum
 import itertools as it
 from pathlib import Path  # noqa: TCH003
-from typing import NoReturn, assert_never, cast, final
+from typing import Annotated, Literal, NoReturn, assert_never, cast
 
 import anyio
 import cv2
+import cyclopts
 import numpy as np
 import numpy.typing as npt
-import typer
 from tqdm import tqdm
 
 
@@ -27,26 +26,19 @@ def decode_image(data: bytes) -> npt.NDArray[np.uint8]:
     )
 
 
-# For compat with Typer, easier
-@final
-class Interpolation(enum.StrEnum):
-    # When shrinking : cv2.INTER_AREA
-    # When upscaling : cv2.INTER_LINEAR or cv2.INTER_CUBIC
-    AREA = "area"
-    LINEAR = "linar"
-    CUBIC = "cubic"
+Interpolation = Literal["area", "linear", "cubic"]
 
-    @property
-    def flag(self) -> int:
-        match self:
-            case Interpolation.AREA:
-                return cv2.INTER_AREA
-            case Interpolation.LINEAR:
-                return cv2.INTER_LINEAR
-            case Interpolation.CUBIC:
-                return cv2.INTER_CUBIC
-            case never:
-                assert_never(never)
+
+def flag(interpolation: Interpolation) -> int:
+    match interpolation:
+        case "area":
+            return cv2.INTER_AREA
+        case "linear":
+            return cv2.INTER_LINEAR
+        case "cubic":
+            return cv2.INTER_CUBIC
+        case never:
+            assert_never(never)
 
 
 def resize_image(
@@ -57,7 +49,7 @@ def resize_image(
 ) -> npt.NDArray[np.uint8]:
     return cast(
         npt.NDArray[np.uint8],
-        cv2.resize(image, (width, height), interpolation=interpolation.flag),
+        cv2.resize(image, (width, height), interpolation=flag(interpolation)),
     )
 
 
@@ -105,22 +97,28 @@ async def run(
         bar.close()
 
 
-@final
-class AsyncBackend(enum.StrEnum):  # Typer doesn't support Literal yet...
-    ASYNCIO = "asyncio"
-    TRIO = "trio"
+AsyncBackend = Literal["asyncio", "trio"]
+
+app = cyclopts.App()
 
 
+@app.default
 def main(
+    *,
     directory: Path,
     height: int = 1024,
     width: int = 1024,
-    interpolation: Interpolation = Interpolation.CUBIC,
-    backend: AsyncBackend = AsyncBackend.TRIO,
+    interpolation: Annotated[
+        Interpolation,
+        cyclopts.Parameter(
+            help="Use 'area' when shrinking and 'cubic' or 'linear' when upscaling."
+        ),
+    ] = "cubic",
+    backend: AsyncBackend = "trio",
 ) -> None:
     anyio.run(run, directory, height, width, interpolation, backend=backend)
 
 
 # ~90-100 FPS on my machine (i7-12700KF)
 if __name__ == "__main__":
-    typer.run(main)
+    app()
