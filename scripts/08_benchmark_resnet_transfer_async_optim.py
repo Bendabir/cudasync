@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import enum
-from typing import TYPE_CHECKING, Optional, assert_never, final
+from typing import TYPE_CHECKING, Literal, assert_never
 
+import cyclopts
 import torch
 import torch.jit
 import torch.nn.functional as F  # noqa: N812
 import torchvision as tv
-import typer
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -53,64 +52,69 @@ def batches(
         i += 1
 
 
-@final
-class Models(enum.StrEnum):
-    RESNET_18 = "resnet18"
-    RESNET_34 = "resnet34"
-    RESNET_50 = "resnet50"
-    RESNET_101 = "resnet101"
-    RESNET_152 = "resnet152"
-
-    def get(self) -> tv.models.ResNet:  # type: ignore[no-any-unimported]
-        match self:
-            case Models.RESNET_18:
-                return tv.models.resnet18()
-            case Models.RESNET_34:
-                return tv.models.resnet34()
-            case Models.RESNET_50:
-                return tv.models.resnet50()
-            case Models.RESNET_101:
-                return tv.models.resnet101()
-            case Models.RESNET_152:
-                return tv.models.resnet152()
-            case never:
-                assert_never(never)
+Model = Literal[
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+]
 
 
-@final
-class Optimizations(enum.StrEnum):
-    TORCH_SCRIPT = "script"
-    TORCH_COMPILE = "compile"
+def get_model(model: Model) -> tv.models.ResNet:  # type: ignore[no-any-unimported]
+    match model:
+        case "resnet18":
+            resnet = tv.models.resnet18()
+        case "resnet34":
+            resnet = tv.models.resnet34()
+        case "resnet50":
+            resnet = tv.models.resnet50()
+        case "resnet101":
+            resnet = tv.models.resnet101()
+        case "resnet152":
+            resnet = tv.models.resnet152()
+        case never:
+            assert_never(never)
 
-    def optimize(  # type: ignore[no-any-unimported]
-        self,
-        model: tv.models.ResNet,
-    ) -> tv.models.ResNet:
-        match self:
-            case Optimizations.TORCH_COMPILE:
-                return torch.compile(model.eval(), mode="reduce-overhead")
-            case Optimizations.TORCH_SCRIPT:
-                return torch.jit.optimize_for_inference(torch.jit.script(model))
-            case never:
-                assert_never(never)
+    return resnet
 
 
-def main(  # noqa: PLR0913, PLR0917
-    model: Models = Models.RESNET_18,
+Optimization = Literal["script", "compile"]
+
+
+def optimize(  # type: ignore[no-any-unimported]
+    optimization: Optimization,
+    model: tv.models.ResNet,
+) -> tv.models.ResNet:
+    match optimization:
+        case "compile":
+            return torch.compile(model.eval(), mode="reduce-overhead")
+        case "script":
+            return torch.jit.optimize_for_inference(torch.jit.script(model))
+        case never:
+            assert_never(never)
+
+
+app = cyclopts.App()
+
+
+@app.default
+def main(  # noqa: PLR0913
+    *,
+    model: Model = "resnet18",
     device: str = "cuda:0",
     size: int = 16,
     height: int = 224,
     width: int = 224,
-    # New Python 3.10 unions not supported by Typer
-    total: Optional[int] = None,  # noqa: UP007
-    optimization: Optional[Optimizations] = None,  # noqa: UP007
+    total: int | None = None,
+    optimization: Optimization | None = None,
 ) -> None:
-    resnet = model.get().eval().to(device)
+    resnet = get_model(model).eval().to(device)
 
     if optimization is not None:
         torch.set_float32_matmul_precision("high")
 
-        resnet = optimization.optimize(resnet)
+        resnet = optimize(optimization, resnet)
 
     # Define an output buffer for async GPU to CPU transfer
     # (otherwise, it is sent to paged memory)
@@ -189,4 +193,4 @@ def main(  # noqa: PLR0913, PLR0917
 # BS 256 : ~2500 FPS on RTX 3080 Ti for ResNet50 with TorchScript
 # BS 512 : ~2525 FPS on RTX 3080 Ti for ResNet50 with TorchScript
 if __name__ == "__main__":
-    typer.run(main)
+    app()
